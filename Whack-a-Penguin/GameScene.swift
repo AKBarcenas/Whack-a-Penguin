@@ -10,6 +10,8 @@ import SpriteKit
 import GameplayKit
 
 class GameScene: SKScene {
+    // Keeps track of the number of rounds that have been played.
+    var numRounds = 0
     // Keeps track of how fast enemies are made.
     var popupTime = 0.85
     // The WhackSlots that have been created.
@@ -22,6 +24,14 @@ class GameScene: SKScene {
             gameScore.text = "Score: \(score)"
         }
     }
+    
+    /*
+     * Function Name: didMoveToView
+     * Parameters: view - the view that called this method.
+     * Purpose: This method sets up the visual environment of the game and starts the game by creating
+     *   enemies after a time delay.
+     * Return Value: None
+     */
     
     override func didMoveToView(view: SKView) {
         let background = SKSpriteNode(imageNamed: "whackBackground")
@@ -47,9 +57,49 @@ class GameScene: SKScene {
         }
     }
     
+    /*
+     * Function Name: touchesBegan
+     * Parameters: touches - the touches that occurred and are associated with the method call.
+     *   event - the event the touches belong to.
+     * Purpose: This method handles when the user taps within the game. Visible peguins will be hidden
+     *   when they are tapped and the score will be updated depending on what type of penguin they are.
+     *   A sound will also be played depending on what type of penguin they are.
+     * Return Value: None
+     */
+    
     override func touchesBegan(touches: Set<UITouch>, withEvent event: UIEvent?) {
-       /* Called when a touch begins */
-        
+        if let touch = touches.first {
+            let location = touch.locationInNode(self)
+            let nodes = nodesAtPoint(location)
+            
+            for node in nodes {
+                // The user has whacked the wrong penguin.
+                if node.name == "charFriend" {
+                    let whackSlot = node.parent!.parent as! WhackSlot
+                    if !whackSlot.visible { continue }
+                    if whackSlot.isHit { continue }
+                    
+                    whackSlot.hit()
+                    score -= 5
+                    
+                    runAction(SKAction.playSoundFileNamed("whackBad.caf", waitForCompletion:false))
+                }
+                // The user has whacked the correct penguin.
+                else if node.name == "charEnemy" {
+                    let whackSlot = node.parent!.parent as! WhackSlot
+                    if !whackSlot.visible { continue }
+                    if whackSlot.isHit { continue }
+                    
+                    whackSlot.charNode.xScale = 0.85
+                    whackSlot.charNode.yScale = 0.85
+                    
+                    whackSlot.hit()
+                    score += 1
+                    
+                    runAction(SKAction.playSoundFileNamed("whack.caf", waitForCompletion:false))
+                }
+            }
+        }
     }
    
     override func update(currentTime: CFTimeInterval) {
@@ -74,11 +124,27 @@ class GameScene: SKScene {
      * Function Name: createEnemy
      * Parameters: None
      * Purpose: This method randomly chooses five slots and makes enemies appear in at least one of those
-     *   slots. The method calls itself after a delay.
+     *   slots. The method calls itself after a delay. This method will also cause a game over if the method
+     *   has been called 30 times already.
      * Return Value: None
      */
     
     func createEnemy() {
+        numRounds += 1
+        
+        if numRounds >= 30 {
+            for slot in slots {
+                slot.hide()
+            }
+            
+            let gameOver = SKSpriteNode(imageNamed: "gameOver")
+            gameOver.position = CGPoint(x: 512, y: 384)
+            gameOver.zPosition = 1
+            addChild(gameOver)
+            
+            return
+        }
+        
         popupTime *= 0.991
         
         slots = GKRandomSource.sharedRandom().arrayByShufflingObjectsInArray(slots) as! [WhackSlot]
